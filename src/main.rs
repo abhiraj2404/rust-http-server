@@ -9,6 +9,7 @@ use solana_sdk::signer::keypair::keypair_from_seed;
 use solana_sdk::signer::SignerError;
 use std::str::FromStr;
 use std::env;
+use spl_associated_token_account::get_associated_token_address;
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {
@@ -173,6 +174,11 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid authority pubkey".to_string() }),
     };
+    // ATA validation: destination must be the ATA for authority and mint
+    let expected_ata = get_associated_token_address(&authority, &mint);
+    if destination != expected_ata {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for authority and mint".to_string() });
+    }
     if mint == destination || mint == authority || destination == authority {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "mint, destination, and authority must all be different".to_string() });
     }
@@ -405,6 +411,11 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid owner address (not base58)".to_string() }),
     };
+    // ATA validation: destination must be the ATA for owner and mint
+    let expected_ata = get_associated_token_address(&owner, &mint);
+    if destination != expected_ata {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for owner and mint".to_string() });
+    }
     if destination == mint || destination == owner || mint == owner {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination, mint, and owner must all be different".to_string() });
     }
