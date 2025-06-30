@@ -67,17 +67,25 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
     use solana_sdk::instruction::AccountMeta;
     use std::str::FromStr;
 
-    let mint = match &req.mint {
+    let mint_str = match &req.mint {
         Some(m) if !m.is_empty() => m,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
-    let mint_authority = match &req.mintAuthority {
+    let mint_authority_str = match &req.mintAuthority {
         Some(m) if !m.is_empty() => m,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let decimals = match req.decimals {
         Some(d) => d,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+    };
+    let mint = match Pubkey::from_str(mint_str) {
+        Ok(pk) => pk,
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint pubkey".to_string() }),
+    };
+    let mint_authority = match Pubkey::from_str(mint_authority_str) {
+        Ok(pk) => pk,
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mintAuthority pubkey".to_string() }),
     };
     let instruction = match initialize_mint(
         &spl_token_program_id(),
@@ -122,21 +130,35 @@ struct MintTokenRequest {
 
 async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
     use spl_token::instruction::mint_to;
-    let mint = match &req.mint {
+    use solana_sdk::pubkey::Pubkey;
+    use std::str::FromStr;
+    let mint_str = match &req.mint {
         Some(m) if !m.is_empty() => m,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
-    let destination = match &req.destination {
+    let destination_str = match &req.destination {
         Some(d) if !d.is_empty() => d,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
-    let authority = match &req.authority {
+    let authority_str = match &req.authority {
         Some(a) if !a.is_empty() => a,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let amount = match req.amount {
         Some(a) => a,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+    };
+    let mint = match Pubkey::from_str(mint_str) {
+        Ok(pk) => pk,
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint pubkey".to_string() }),
+    };
+    let destination = match Pubkey::from_str(destination_str) {
+        Ok(pk) => pk,
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid destination pubkey".to_string() }),
+    };
+    let authority = match Pubkey::from_str(authority_str) {
+        Ok(pk) => pk,
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid authority pubkey".to_string() }),
     };
     let instruction = match mint_to(
         &spl_token::id(),
@@ -234,7 +256,7 @@ async fn verify_message(req: web::Json<VerifyMessageRequest>) -> impl Responder 
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid pubkey encoding".to_string() }),
     };
-    let signature_bytes = match base64::decode(signature) {git 
+    let signature_bytes = match base64::decode(signature) {
         Ok(bytes) => bytes,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid signature encoding".to_string() }),
     };
@@ -334,16 +356,15 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
     use spl_token::instruction::transfer;
     use solana_sdk::pubkey::Pubkey;
     use std::str::FromStr;
-
-    let destination = match &req.destination {
+    let destination_str = match &req.destination {
         Some(d) if !d.is_empty() => d,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
-    let mint = match &req.mint {
+    let mint_str = match &req.mint {
         Some(m) if !m.is_empty() => m,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
-    let owner = match &req.owner {
+    let owner_str = match &req.owner {
         Some(o) if !o.is_empty() => o,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
@@ -351,15 +372,26 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
         Some(a) => a,
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
+    let destination = match Pubkey::from_str(destination_str) {
+        Ok(pk) => pk,
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid destination address (not base58)".to_string() }),
+    };
+    let mint = match Pubkey::from_str(mint_str) {
+        Ok(pk) => pk,
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint address (not base58)".to_string() }),
+    };
+    let owner = match Pubkey::from_str(owner_str) {
+        Ok(pk) => pk,
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid owner address (not base58)".to_string() }),
+    };
     if amount == 0 {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "amount must be non-zero and positive".to_string() });
     }
-    // For demonstration, assume source token account is owner, destination is destination
     let instruction = match transfer(
         &spl_token::id(),
-        &owner, // source token account (should be ATA in real use)
-        &destination, // destination token account (should be ATA in real use)
-        &owner, // owner
+        &owner,
+        &destination,
+        &owner,
         &[],
         amount,
     ) {
