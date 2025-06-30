@@ -80,33 +80,33 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
 
     let mint_str = match &req.mint {
         Some(m) if !m.is_empty() && is_base58(m) => m,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint_authority_str = match &req.mintAuthority {
         Some(m) if !m.is_empty() && is_base58(m) => m,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let decimals = match req.decimals {
         Some(d) if d <= 9 => d,
-        Some(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "decimals must be less than or equal to 9".to_string() }),
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "decimals must be less than or equal to 9".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint = match Pubkey::from_str(mint_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint_authority = match Pubkey::from_str(mint_authority_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     if is_zero_address(&mint) || is_zero_address(&mint_authority) {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
     }
     if mint == system_program::id() || mint_authority == system_program::id() {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id".to_string() });
     }
     if mint == mint_authority {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "mint and mintAuthority cannot be the same".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "mint and mintAuthority cannot be the same".to_string() });
     }
     let instruction = match initialize_mint(
         &spl_token_program_id(),
@@ -117,7 +117,7 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
     ) {
         Ok(ix) => ix,
         Err(e) => {
-            return HttpResponse::Ok().json(ErrorResponse {
+            return HttpResponse::BadRequest().json(ErrorResponse {
                 success: false,
                 error: format!("Failed to create initialize_mint instruction: {}", e),
             });
@@ -155,47 +155,47 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
     use std::str::FromStr;
     let mint_str = match &req.mint {
         Some(m) if !m.is_empty() && is_base58(m) => m,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let destination_str = match &req.destination {
         Some(d) if !d.is_empty() && is_base58(d) => d,
-        Some(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let authority_str = match &req.authority {
         Some(a) if !a.is_empty() && is_base58(a) => a,
-        Some(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let amount = match req.amount {
         Some(a) => a,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint = match Pubkey::from_str(mint_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let destination = match Pubkey::from_str(destination_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let authority = match Pubkey::from_str(authority_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     // ATA validation: destination must be the ATA for authority and mint
     let expected_ata = get_associated_token_address(&authority, &mint);
     if destination != expected_ata {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for authority and mint".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for authority and mint".to_string() });
     }
     if is_zero_address(&mint) || is_zero_address(&authority) {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
     }
     if mint == system_program::id() || authority == system_program::id() {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id".to_string() });
     }
     if mint == destination || mint == authority || destination == authority {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "mint, destination, and authority must all be different".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "mint, destination, and authority must all be different".to_string() });
     }
     let instruction = match mint_to(
         &spl_token::id(),
@@ -206,7 +206,7 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
         amount,
     ) {
         Ok(ix) => ix,
-        Err(e) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: format!("Failed to create mint_to instruction: {}", e) }),
+        Err(e) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: format!("Failed to create mint_to instruction: {}", e) }),
     };
     let accounts_serialized = instruction.accounts.iter().map(|meta| AccountMetaData {
         pubkey: meta.pubkey.to_string(),
@@ -238,19 +238,19 @@ struct SignMessageData {
 async fn sign_message(req: web::Json<SignMessageRequest>) -> impl Responder {
     let message = match &req.message {
         Some(m) if !m.is_empty() => m,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let secret = match &req.secret {
         Some(s) if !s.is_empty() => s,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let secret_bytes = match bs58::decode(secret).into_vec() {
         Ok(bytes) => bytes,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid secret key encoding".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid secret key encoding".to_string() }),
     };
     let keypair = match Keypair::from_bytes(&secret_bytes) {
         Ok(kp) => kp,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid secret key bytes".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid secret key bytes".to_string() }),
     };
     let signature = keypair.sign_message(message.as_bytes());
     let data = SignMessageData {
@@ -279,27 +279,27 @@ struct VerifyMessageData {
 async fn verify_message(req: web::Json<VerifyMessageRequest>) -> impl Responder {
     let message = match &req.message {
         Some(m) if !m.is_empty() => m,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let signature = match &req.signature {
         Some(s) if !s.is_empty() => s,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let pubkey = match &req.pubkey {
         Some(p) if !p.is_empty() => p,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let pubkey = match Pubkey::from_str(pubkey) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid pubkey encoding".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid pubkey encoding".to_string() }),
     };
     let signature_bytes = match base64::decode(signature) {
         Ok(bytes) => bytes,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid signature encoding".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid signature encoding".to_string() }),
     };
     let signature = match Signature::try_from(signature_bytes.as_slice()) {
         Ok(sig) => sig,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid signature bytes".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid signature bytes".to_string() }),
     };
     let valid = signature.verify(pubkey.as_ref(), message.as_bytes());
     let data = VerifyMessageData {
@@ -332,36 +332,36 @@ async fn send_sol(req: web::Json<SendSolRequest>) -> impl Responder {
 
     let from = match &req.from {
         Some(f) if !f.is_empty() && is_base58(f) => f,
-        Some(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid from address (not base58)".to_string() }),
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid from address (not base58)".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let to = match &req.to {
         Some(t) if !t.is_empty() && is_base58(t) => t,
-        Some(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid to address (not base58)".to_string() }),
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid to address (not base58)".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let lamports = match req.lamports {
         Some(l) if l < 1_000_000_000_000_000_000 => l,
-        Some(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "lamports must be less than 10^18".to_string() }),
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "lamports must be less than 10^18".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     if lamports == 0 {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "lamports must be non-zero and positive".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "lamports must be non-zero and positive".to_string() });
     }
     // Validate addresses
     let from = match Pubkey::from_str(from) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid from address (not base58)".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid from address (not base58)".to_string() }),
     };
     let to = match Pubkey::from_str(to) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid to address (not base58)".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid to address (not base58)".to_string() }),
     };
     if is_zero_address(&from) || is_zero_address(&to) {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
     }
     if from == to {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "from and to address must not be the same".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "from and to address must not be the same".to_string() });
     }
     let instruction = transfer(&from, &to, lamports);
     let data = SendSolData {
@@ -401,51 +401,51 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
     use std::str::FromStr;
     let destination_str = match &req.destination {
         Some(d) if !d.is_empty() && is_base58(d) => d,
-        Some(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid destination address (not base58)".to_string() }),
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid destination address (not base58)".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint_str = match &req.mint {
         Some(m) if !m.is_empty() && is_base58(m) => m,
-        Some(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid mint address (not base58)".to_string() }),
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint address (not base58)".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let owner_str = match &req.owner {
         Some(o) if !o.is_empty() && is_base58(o) => o,
-        Some(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid owner address (not base58)".to_string() }),
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid owner address (not base58)".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let amount = match req.amount {
         Some(a) => a,
-        _ => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let destination = match Pubkey::from_str(destination_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid destination address (not base58)".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid destination address (not base58)".to_string() }),
     };
     let mint = match Pubkey::from_str(mint_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid mint address (not base58)".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint address (not base58)".to_string() }),
     };
     let owner = match Pubkey::from_str(owner_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Invalid owner address (not base58)".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid owner address (not base58)".to_string() }),
     };
     // ATA validation: destination must be the ATA for owner and mint
     let expected_ata = get_associated_token_address(&owner, &mint);
     if destination != expected_ata {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for owner and mint".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for owner and mint".to_string() });
     }
     if is_zero_address(&destination) || is_zero_address(&mint) || is_zero_address(&owner) {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
     }
     if destination == system_program::id() || mint == system_program::id() || owner == system_program::id() {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id".to_string() });
     }
     if destination == mint || destination == owner || mint == owner {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "destination, mint, and owner must all be different".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination, mint, and owner must all be different".to_string() });
     }
     if amount == 0 {
-        return HttpResponse::Ok().json(ErrorResponse { success: false, error: "amount must be non-zero and positive".to_string() });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "amount must be non-zero and positive".to_string() });
     }
     let instruction = match transfer(
         &spl_token::id(),
@@ -456,7 +456,7 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
         amount,
     ) {
         Ok(ix) => ix,
-        Err(e) => return HttpResponse::Ok().json(ErrorResponse { success: false, error: format!("Failed to create transfer instruction: {}", e) }),
+        Err(e) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: format!("Failed to create transfer instruction: {}", e) }),
     };
     let accounts_serialized = instruction.accounts.iter().map(|meta| SendTokenAccountMeta {
         pubkey: meta.pubkey.to_string(),
