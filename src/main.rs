@@ -59,6 +59,10 @@ struct TokenCreateData {
     instruction_data: String,
 }
 
+fn is_base58(s: &str) -> bool {
+    bs58::decode(s).into_vec().is_ok()
+}
+
 async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
     use solana_sdk::pubkey::Pubkey;
     use spl_token::id as spl_token_program_id;
@@ -68,11 +72,13 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
     use std::str::FromStr;
 
     let mint_str = match &req.mint {
-        Some(m) if !m.is_empty() => m,
+        Some(m) if !m.is_empty() && is_base58(m) => m,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint pubkey (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint_authority_str = match &req.mintAuthority {
-        Some(m) if !m.is_empty() => m,
+        Some(m) if !m.is_empty() && is_base58(m) => m,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mintAuthority pubkey (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let decimals = match req.decimals {
@@ -134,15 +140,18 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
     use solana_sdk::pubkey::Pubkey;
     use std::str::FromStr;
     let mint_str = match &req.mint {
-        Some(m) if !m.is_empty() => m,
+        Some(m) if !m.is_empty() && is_base58(m) => m,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint pubkey (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let destination_str = match &req.destination {
-        Some(d) if !d.is_empty() => d,
+        Some(d) if !d.is_empty() && is_base58(d) => d,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid destination pubkey (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let authority_str = match &req.authority {
-        Some(a) if !a.is_empty() => a,
+        Some(a) if !a.is_empty() && is_base58(a) => a,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid authority pubkey (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let amount = match req.amount {
@@ -295,18 +304,20 @@ async fn send_sol(req: web::Json<SendSolRequest>) -> impl Responder {
     use std::str::FromStr;
 
     let from = match &req.from {
-        Some(f) if !f.is_empty() => f,
+        Some(f) if !f.is_empty() && is_base58(f) => f,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid from address (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let to = match &req.to {
-        Some(t) if !t.is_empty() => t,
+        Some(t) if !t.is_empty() && is_base58(t) => t,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid to address (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let lamports = match req.lamports {
-        Some(l) => l,
+        Some(l) if l < 1_000_000_000_000_000_000 => l,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "lamports must be less than 10^18".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
-    // Validate lamports
     if lamports == 0 {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "lamports must be non-zero and positive".to_string() });
     }
@@ -358,15 +369,18 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
     use solana_sdk::pubkey::Pubkey;
     use std::str::FromStr;
     let destination_str = match &req.destination {
-        Some(d) if !d.is_empty() => d,
+        Some(d) if !d.is_empty() && is_base58(d) => d,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid destination address (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint_str = match &req.mint {
-        Some(m) if !m.is_empty() => m,
+        Some(m) if !m.is_empty() && is_base58(m) => m,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint address (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let owner_str = match &req.owner {
-        Some(o) if !o.is_empty() => o,
+        Some(o) if !o.is_empty() && is_base58(o) => o,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid owner address (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let amount = match req.amount {
