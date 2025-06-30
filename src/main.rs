@@ -82,8 +82,8 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let decimals = match req.decimals {
-        Some(d) if d <= 18 => d,
-        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "decimals must be less than or equal to 18".to_string() }),
+        Some(d) if d <= 9 => d,
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "decimals must be less than or equal to 9".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint = match Pubkey::from_str(mint_str) {
