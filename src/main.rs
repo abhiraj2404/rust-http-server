@@ -94,6 +94,9 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mintAuthority pubkey".to_string() }),
     };
+    if mint == mint_authority {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "mint and mintAuthority cannot be the same".to_string() });
+    }
     let instruction = match initialize_mint(
         &spl_token_program_id(),
         &mint,
@@ -170,6 +173,9 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid authority pubkey".to_string() }),
     };
+    if mint == destination || mint == authority || destination == authority {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "mint, destination, and authority must all be different".to_string() });
+    }
     let instruction = match mint_to(
         &spl_token::id(),
         &mint,
@@ -399,6 +405,9 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid owner address (not base58)".to_string() }),
     };
+    if destination == mint || destination == owner || mint == owner {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination, mint, and owner must all be different".to_string() });
+    }
     if amount == 0 {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "amount must be non-zero and positive".to_string() });
     }
