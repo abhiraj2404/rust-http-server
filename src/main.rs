@@ -8,6 +8,7 @@ use solana_sdk::message::Message;
 use solana_sdk::signer::keypair::keypair_from_seed;
 use solana_sdk::signer::SignerError;
 use std::str::FromStr;
+use std::env;
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {
@@ -168,8 +169,8 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
 // --- Sign Message Endpoint ---
 #[derive(Deserialize)]
 struct SignMessageRequest {
-    message: String,
-    secret: String,
+    message: Option<String>,
+    secret: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -180,10 +181,15 @@ struct SignMessageData {
 }
 
 async fn sign_message(req: web::Json<SignMessageRequest>) -> impl Responder {
-    if req.message.is_empty() || req.secret.is_empty() {
-        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() });
-    }
-    let secret_bytes = match bs58::decode(&req.secret).into_vec() {
+    let message = match &req.message {
+        Some(m) if !m.is_empty() => m,
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+    };
+    let secret = match &req.secret {
+        Some(s) if !s.is_empty() => s,
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+    };
+    let secret_bytes = match bs58::decode(secret).into_vec() {
         Ok(bytes) => bytes,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid secret key encoding".to_string() }),
     };
@@ -191,11 +197,11 @@ async fn sign_message(req: web::Json<SignMessageRequest>) -> impl Responder {
         Ok(kp) => kp,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid secret key bytes".to_string() }),
     };
-    let signature = keypair.sign_message(req.message.as_bytes());
+    let signature = keypair.sign_message(message.as_bytes());
     let data = SignMessageData {
         signature: base64::encode(signature.as_ref()),
         public_key: keypair.pubkey().to_string(),
-        message: req.message.clone(),
+        message: message.clone(),
     };
     HttpResponse::Ok().json(SuccessResponse { success: true, data })
 }
@@ -203,9 +209,9 @@ async fn sign_message(req: web::Json<SignMessageRequest>) -> impl Responder {
 // --- Verify Message Endpoint ---
 #[derive(Deserialize)]
 struct VerifyMessageRequest {
-    message: String,
-    signature: String,
-    pubkey: String,
+    message: Option<String>,
+    signature: Option<String>,
+    pubkey: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -216,14 +222,23 @@ struct VerifyMessageData {
 }
 
 async fn verify_message(req: web::Json<VerifyMessageRequest>) -> impl Responder {
-    if req.message.is_empty() || req.signature.is_empty() || req.pubkey.is_empty() {
-        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() });
-    }
-    let pubkey = match Pubkey::from_str(&req.pubkey) {
+    let message = match &req.message {
+        Some(m) if !m.is_empty() => m,
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+    };
+    let signature = match &req.signature {
+        Some(s) if !s.is_empty() => s,
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+    };
+    let pubkey = match &req.pubkey {
+        Some(p) if !p.is_empty() => p,
+        _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
+    };
+    let pubkey = match Pubkey::from_str(pubkey) {
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid pubkey encoding".to_string() }),
     };
-    let signature_bytes = match base64::decode(&req.signature) {
+    let signature_bytes = match base64::decode(signature) {
         Ok(bytes) => bytes,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid signature encoding".to_string() }),
     };
@@ -231,10 +246,10 @@ async fn verify_message(req: web::Json<VerifyMessageRequest>) -> impl Responder 
         Ok(sig) => sig,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid signature bytes".to_string() }),
     };
-    let valid = signature.verify(pubkey.as_ref(), req.message.as_bytes());
+    let valid = signature.verify(pubkey.as_ref(), message.as_bytes());
     let data = VerifyMessageData {
         valid,
-        message: req.message.clone(),
+        message: message.clone(),
         pubkey: pubkey.to_string(),
     };
     HttpResponse::Ok().json(SuccessResponse { success: true, data })
@@ -361,6 +376,8 @@ async fn not_found() -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Use PORT env var if set, otherwise default to 8080
+    let port = env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
     HttpServer::new(|| {
         App::new()
             .route("/keypair", web::post().to(generate_keypair))
@@ -372,7 +389,7 @@ async fn main() -> std::io::Result<()> {
             .route("/send/token", web::post().to(send_token))
             .default_service(web::route().to(not_found))
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("0.0.0.0", port))?
     .run()
     .await
 }
