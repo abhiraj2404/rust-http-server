@@ -1,16 +1,12 @@
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use solana_sdk::{signature::{Keypair, Signer}, pubkey::Pubkey};
-use std::sync::Arc;
-use spl_token::instruction as token_instruction;
-use solana_sdk::signature::{Signature, read_keypair_file};
-use solana_sdk::message::Message;
-use solana_sdk::signer::keypair::keypair_from_seed;
-use solana_sdk::signer::SignerError;
-use std::str::FromStr;
-use std::env;
 use spl_associated_token_account::get_associated_token_address;
 use solana_sdk::system_program;
+use std::env;
+use base64::{engine::general_purpose, Engine as _};
+use solana_sdk::signature::{Signature};
+use std::str::FromStr;
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {
@@ -40,6 +36,7 @@ async fn generate_keypair() -> impl Responder {
 }
 
 // --- Token Create Endpoint ---
+#[allow(non_snake_case)]
 #[derive(Deserialize)]
 struct TokenCreateRequest {
     mintAuthority: Option<String>,
@@ -71,11 +68,8 @@ fn is_zero_address(pk: &Pubkey) -> bool {
 }
 
 async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
-    use solana_sdk::pubkey::Pubkey;
     use spl_token::id as spl_token_program_id;
     use spl_token::instruction::initialize_mint;
-    use solana_sdk::instruction::Instruction;
-    use solana_sdk::instruction::AccountMeta;
     use std::str::FromStr;
 
     let mint_str = match &req.mint {
@@ -135,7 +129,7 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
     let data = TokenCreateData {
         program_id: instruction.program_id.to_string(),
         accounts: accounts_serialized,
-        instruction_data: base64::encode(&instruction.data),
+        instruction_data: general_purpose::STANDARD.encode(&instruction.data),
     };
     HttpResponse::Ok().json(SuccessResponse { success: true, data })
 }
@@ -216,7 +210,7 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
     let data = TokenCreateData {
         program_id: instruction.program_id.to_string(),
         accounts: accounts_serialized,
-        instruction_data: base64::encode(&instruction.data),
+        instruction_data: general_purpose::STANDARD.encode(&instruction.data),
     };
     HttpResponse::Ok().json(SuccessResponse { success: true, data })
 }
@@ -254,7 +248,7 @@ async fn sign_message(req: web::Json<SignMessageRequest>) -> impl Responder {
     };
     let signature = keypair.sign_message(message.as_bytes());
     let data = SignMessageData {
-        signature: base64::encode(signature.as_ref()),
+        signature: general_purpose::STANDARD.encode(signature.as_ref()),
         public_key: keypair.pubkey().to_string(),
         message: message.clone(),
     };
@@ -293,7 +287,7 @@ async fn verify_message(req: web::Json<VerifyMessageRequest>) -> impl Responder 
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid pubkey encoding".to_string() }),
     };
-    let signature_bytes = match base64::decode(signature) {
+    let signature_bytes = match general_purpose::STANDARD.decode(signature) {
         Ok(bytes) => bytes,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid signature encoding".to_string() }),
     };
@@ -367,7 +361,7 @@ async fn send_sol(req: web::Json<SendSolRequest>) -> impl Responder {
     let data = SendSolData {
         program_id: instruction.program_id.to_string(),
         accounts: instruction.accounts.iter().map(|meta| meta.pubkey.to_string()).collect(),
-        instruction_data: base64::encode(&instruction.data),
+        instruction_data: general_purpose::STANDARD.encode(&instruction.data),
     };
     HttpResponse::Ok().json(SuccessResponse { success: true, data })
 }
@@ -465,7 +459,7 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
     let data = SendTokenData {
         program_id: instruction.program_id.to_string(),
         accounts: accounts_serialized,
-        instruction_data: base64::encode(&instruction.data),
+        instruction_data: general_purpose::STANDARD.encode(&instruction.data),
     };
     HttpResponse::Ok().json(SuccessResponse { success: true, data })
 }
