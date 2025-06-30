@@ -10,6 +10,7 @@ use solana_sdk::signer::SignerError;
 use std::str::FromStr;
 use std::env;
 use spl_associated_token_account::get_associated_token_address;
+use solana_sdk::system_program;
 
 #[derive(Serialize)]
 struct SuccessResponse<T> {
@@ -64,6 +65,11 @@ fn is_base58(s: &str) -> bool {
     bs58::decode(s).into_vec().is_ok()
 }
 
+// Helper for zero address check
+fn is_zero_address(pk: &Pubkey) -> bool {
+    pk.to_bytes() == [0u8; 32]
+}
+
 async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
     use solana_sdk::pubkey::Pubkey;
     use spl_token::id as spl_token_program_id;
@@ -95,6 +101,12 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mintAuthority pubkey".to_string() }),
     };
+    if is_zero_address(&mint) || is_zero_address(&mint_authority) {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address" });
+    }
+    if mint == system_program::id() || mint_authority == system_program::id() {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id" });
+    }
     if mint == mint_authority {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "mint and mintAuthority cannot be the same".to_string() });
     }
@@ -178,6 +190,12 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
     let expected_ata = get_associated_token_address(&authority, &mint);
     if destination != expected_ata {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for authority and mint".to_string() });
+    }
+    if is_zero_address(&mint) || is_zero_address(&authority) {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address" });
+    }
+    if mint == system_program::id() || authority == system_program::id() {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id" });
     }
     if mint == destination || mint == authority || destination == authority {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "mint, destination, and authority must all be different".to_string() });
@@ -342,6 +360,9 @@ async fn send_sol(req: web::Json<SendSolRequest>) -> impl Responder {
         Ok(pk) => pk,
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid to address (not base58)".to_string() }),
     };
+    if is_zero_address(&from) || is_zero_address(&to) {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address" });
+    }
     if from == to {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "from and to address must not be the same".to_string() });
     }
@@ -415,6 +436,12 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
     let expected_ata = get_associated_token_address(&owner, &mint);
     if destination != expected_ata {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for owner and mint".to_string() });
+    }
+    if is_zero_address(&destination) || is_zero_address(&mint) || is_zero_address(&owner) {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address" });
+    }
+    if destination == system_program::id() || mint == system_program::id() || owner == system_program::id() {
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id" });
     }
     if destination == mint || destination == owner || mint == owner {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination, mint, and owner must all be different".to_string() });
