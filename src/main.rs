@@ -80,12 +80,10 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
 
     let mint_str = match &req.mint {
         Some(m) if !m.is_empty() && is_base58(m) => m,
-        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint pubkey (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint_authority_str = match &req.mintAuthority {
         Some(m) if !m.is_empty() && is_base58(m) => m,
-        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mintAuthority pubkey (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let decimals = match req.decimals {
@@ -95,17 +93,17 @@ async fn create_token(req: web::Json<TokenCreateRequest>) -> impl Responder {
     };
     let mint = match Pubkey::from_str(mint_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint pubkey".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let mint_authority = match Pubkey::from_str(mint_authority_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mintAuthority pubkey".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     if is_zero_address(&mint) || is_zero_address(&mint_authority) {
-        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address" });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
     }
     if mint == system_program::id() || mint_authority == system_program::id() {
-        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id" });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id".to_string() });
     }
     if mint == mint_authority {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "mint and mintAuthority cannot be the same".to_string() });
@@ -157,17 +155,16 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
     use std::str::FromStr;
     let mint_str = match &req.mint {
         Some(m) if !m.is_empty() && is_base58(m) => m,
-        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint pubkey (not base58)".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let destination_str = match &req.destination {
         Some(d) if !d.is_empty() && is_base58(d) => d,
-        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid destination pubkey (not base58)".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let authority_str = match &req.authority {
         Some(a) if !a.is_empty() && is_base58(a) => a,
-        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid authority pubkey (not base58)".to_string() }),
+        Some(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
         _ => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let amount = match req.amount {
@@ -176,15 +173,15 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
     };
     let mint = match Pubkey::from_str(mint_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid mint pubkey".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let destination = match Pubkey::from_str(destination_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid destination pubkey".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     let authority = match Pubkey::from_str(authority_str) {
         Ok(pk) => pk,
-        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid authority pubkey".to_string() }),
+        Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Missing required fields".to_string() }),
     };
     // ATA validation: destination must be the ATA for authority and mint
     let expected_ata = get_associated_token_address(&authority, &mint);
@@ -192,10 +189,10 @@ async fn mint_token(req: web::Json<MintTokenRequest>) -> impl Responder {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for authority and mint".to_string() });
     }
     if is_zero_address(&mint) || is_zero_address(&authority) {
-        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address" });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
     }
     if mint == system_program::id() || authority == system_program::id() {
-        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id" });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id".to_string() });
     }
     if mint == destination || mint == authority || destination == authority {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "mint, destination, and authority must all be different".to_string() });
@@ -361,7 +358,7 @@ async fn send_sol(req: web::Json<SendSolRequest>) -> impl Responder {
         Err(_) => return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Invalid to address (not base58)".to_string() }),
     };
     if is_zero_address(&from) || is_zero_address(&to) {
-        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address" });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
     }
     if from == to {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "from and to address must not be the same".to_string() });
@@ -387,7 +384,8 @@ struct SendTokenRequest {
 #[derive(Serialize)]
 struct SendTokenAccountMeta {
     pubkey: String,
-    isSigner: bool,
+    #[serde(rename = "isSigner")]
+    is_signer: bool,
 }
 
 #[derive(Serialize)]
@@ -438,10 +436,10 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination is not the valid associated token account for owner and mint".to_string() });
     }
     if is_zero_address(&destination) || is_zero_address(&mint) || is_zero_address(&owner) {
-        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address" });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the all-zero address".to_string() });
     }
     if destination == system_program::id() || mint == system_program::id() || owner == system_program::id() {
-        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id" });
+        return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "Addresses cannot be the system program id".to_string() });
     }
     if destination == mint || destination == owner || mint == owner {
         return HttpResponse::BadRequest().json(ErrorResponse { success: false, error: "destination, mint, and owner must all be different".to_string() });
@@ -462,7 +460,7 @@ async fn send_token(req: web::Json<SendTokenRequest>) -> impl Responder {
     };
     let accounts_serialized = instruction.accounts.iter().map(|meta| SendTokenAccountMeta {
         pubkey: meta.pubkey.to_string(),
-        isSigner: meta.is_signer,
+        is_signer: meta.is_signer,
     }).collect();
     let data = SendTokenData {
         program_id: instruction.program_id.to_string(),
